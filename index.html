@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Toxic Study Coach Pro</title>
+    <!-- Tailwind & Chart.js -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucid Icons via CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap');
+        
+        :root {
+            --amoled: #000000;
+            --toxic: #00ff66;
+            --blood: #ff0033;
+            --zinc-950: #09090b;
+        }
+
+        body {
+            background-color: var(--amoled);
+            color: #ffffff;
+            font-family: 'Hind Siliguri', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        /* Fullscreen Focus Mode Overlay */
+        #focus-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: var(--amoled);
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .toxic-glow {
+            box-shadow: 0 0 30px rgba(0, 255, 102, 0.15);
+            border: 1px solid rgba(0, 255, 102, 0.3);
+        }
+
+        .blood-glow {
+            box-shadow: 0 0 30px rgba(255, 0, 51, 0.2);
+            border: 1px solid rgba(255, 0, 51, 0.4);
+        }
+
+        .btn-grad {
+            background: linear-gradient(135deg, #00ff66 0%, #009944 100%);
+            color: black;
+            font-weight: 800;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: var(--amoled); }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+
+        .stat-card {
+            background: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
+            border: 1px solid #1a1a1a;
+        }
+
+        @keyframes pulse-red {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .pulse-danger { animation: pulse-red 2s infinite; }
+
+        canvas { filter: saturate(1.5) brightness(0.8); }
+    </style>
+</head>
+<body class="p-4 safe-area-inset">
+
+    <!-- Header Section -->
+    <header class="flex justify-between items-start mb-6 pt-2">
+        <div>
+            <h1 class="text-2xl font-black tracking-tighter text-zinc-100 uppercase">Toxic Coach <span class="text-[10px] bg-red-600 px-1 py-0.5 rounded ml-1">v4.0</span></h1>
+            <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest" id="date-display"></p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="requestNotifications()" class="p-2 bg-zinc-900 rounded-full border border-zinc-800">
+                <i data-lucide="bell" class="w-4 h-4 text-zinc-400"></i>
+            </button>
+            <button onclick="resetData()" class="p-2 bg-zinc-900 rounded-full border border-zinc-800">
+                <i data-lucide="refresh-ccw" class="w-4 h-4 text-zinc-400"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Global Lifetime Stats -->
+    <section class="grid grid-cols-3 gap-2 mb-6">
+        <div class="stat-card p-3 rounded-xl text-center">
+            <p class="text-[8px] text-zinc-500 uppercase font-black">Lifetime</p>
+            <p id="life-hours" class="text-lg font-bold text-toxic">0.0h</p>
+        </div>
+        <div class="stat-card p-3 rounded-xl text-center">
+            <p class="text-[8px] text-zinc-500 uppercase font-black">Day Streak</p>
+            <p id="life-days" class="text-lg font-bold">1</p>
+        </div>
+        <div class="stat-card p-3 rounded-xl text-center">
+            <p class="text-[8px] text-zinc-500 uppercase font-black">Today</p>
+            <p id="today-hours" class="text-lg font-bold">0.0h</p>
+        </div>
+    </section>
+
+    <!-- Toxic Motivation Box -->
+    <div class="bg-red-950/20 border border-red-900/30 p-4 rounded-2xl mb-8 relative overflow-hidden">
+        <div class="absolute -right-2 -bottom-2 opacity-10">
+            <i data-lucide="skull" class="w-16 h-16"></i>
+        </div>
+        <p id="insult-text" class="text-sm font-bold italic text-red-200 relative z-10 leading-relaxed">
+            "তোর পাশের বাসার আবির কিন্তু অলরেডি ২ চ্যাপ্টার শেষ করছে। তুই কি এখনো এইখানে স্ক্রল করতেছিস?"
+        </p>
+    </div>
+
+    <!-- Subject Management -->
+    <section class="mb-10">
+        <h2 class="text-xs font-black text-zinc-600 uppercase mb-4 tracking-widest flex items-center gap-2">
+            <i data-lucide="layers" class="w-3 h-3"></i> Subject Matrix
+        </h2>
+        <div id="subject-grid" class="space-y-3">
+            <!-- Dynamic Injection -->
+        </div>
+    </section>
+
+    <!-- Charts / Analytics -->
+    <section class="mb-24">
+        <h2 class="text-xs font-black text-zinc-600 uppercase mb-4 tracking-widest">Growth Analytics</h2>
+        <div class="bg-zinc-950 p-4 rounded-2xl border border-zinc-900">
+            <div class="h-64">
+                <canvas id="lifetimeChart"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- Focus Mode Overlay -->
+    <div id="focus-overlay">
+        <div class="text-center px-6">
+            <p id="focus-subject" class="text-zinc-500 uppercase tracking-[0.5em] text-[10px] mb-2">Physics 1st Paper</p>
+            <h2 id="focus-timer" class="text-7xl font-mono font-black mb-8 text-white tracking-tighter">00:00:00</h2>
+            
+            <div class="p-6 rounded-3xl bg-zinc-900/50 border border-zinc-800 mb-12 toxic-glow">
+                <p id="focus-insult" class="text-toxic text-sm font-bold italic">"নড়াচড়া করবি না। চোখ বইয়ের দিকে রাখ হারামি!"</p>
+            </div>
+
+            <button onclick="requestStop()" class="group flex flex-col items-center gap-3">
+                <div class="w-16 h-16 rounded-full border-2 border-red-600 flex items-center justify-center group-active:scale-90 transition-transform">
+                    <i data-lucide="x" class="text-red-600 w-8 h-8"></i>
+                </div>
+                <span class="text-[10px] font-black text-red-600 uppercase tracking-widest">Abandon Mission</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Stop Confirmation Modal -->
+    <div id="stop-modal" class="modal">
+        <div class="bg-zinc-950 border border-zinc-800 p-8 rounded-[2rem] w-full max-w-sm text-center">
+            <i data-lucide="alert-triangle" class="w-12 h-12 text-red-600 mx-auto mb-4 pulse-danger"></i>
+            <h3 class="text-xl font-black mb-2 uppercase">মিশন ত্যাগ করবি?</h3>
+            <p class="text-zinc-500 text-xs mb-6">৩০ মিনিট পড়ার মুরোদ নাই তোর? কারণ সিলেক্ট কর:</p>
+            
+            <select id="stop-reason" class="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-sm mb-6 text-white appearance-none">
+                <option value="washroom">ওয়াশরুম (৫ মিনিট বিরতি)</option>
+                <option value="emergency">ইমার্জেন্সি (কোচ মাফ করবে না)</option>
+                <option value="lazy">আমি অলস, আমি ব্যর্থ</option>
+            </select>
+
+            <div class="space-y-3">
+                <button onclick="confirmStop()" class="w-full py-4 bg-red-600 text-white font-black rounded-xl uppercase text-xs">হ্যাঁ, আমি লুজার</button>
+                <button onclick="closeStopModal()" class="w-full py-4 bg-zinc-800 text-zinc-400 font-black rounded-xl uppercase text-xs">না, আমি পড়ব</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ARCHITECTURE ---
+        const SUBJECT_KEYS = [
+            "Bangla 1st", "Bangla 2nd", "English 1st", "English 2nd", "ICT",
+            "Physics 1st", "Physics 2nd", "Chemistry 1st", "Chemistry 2nd",
+            "Math 1st", "Math 2nd", "Biology 1st", "Biology 2nd"
+        ];
+
+        let db = JSON.parse(localStorage.getItem('toxic_pro_v4')) || {
+            subjects: SUBJECT_KEYS.map((n, i) => ({ id: i, name: n, daily: 0, life: 0 })),
+            lastActiveDate: new Date().toLocaleDateString(),
+            streak: 1,
+            insultIndex: 0
+        };
+
+        let activeId = null;
+        let timerInt = null;
+        let sessionSec = 0;
+        let chart = null;
+
+        const insults = [
+            "তোর পাশের বাসার আবির কিন্তু অলরেডি ২ চ্যাপ্টার শেষ করছে। তুই কি এখনো এইখানে স্ক্রল করতেছিস?",
+            "চান্স না পাইলে রিকশা কিনবি কেমনে? বাপের তো অনেক টাকা, তাই না?",
+            "বাপের টাকা ধ্বংস করার মেশিন তুই একটা। লজ্জা লাগে না?",
+            "রুটিন করিস প্রতিদিন, পড়িস না তো এক দিনও! আয়নায় মুখ দেখিস?",
+            "তোর দ্বারা রিকশা চালানোই সম্ভব। ওইটার লাইসেন্সটা করে রাখ বরং।",
+            "এখনো সময় আছে হারামি। পড়তে বোস নাইলে কপালে দুঃখ আছে।",
+            "মোবাইলটা বালিশের নিচে রেখে বইটা হাতে নে। তোর ভালোর জন্যই বলছি।"
+        ];
+
+        // --- CORE FUNCTIONS ---
+        function init() {
+            lucide.createIcons();
+            document.getElementById('date-display').innerText = new Date().toDateString();
+            checkNewDay();
+            renderSubjects();
+            updateDashboard();
+            initChart();
+            startBackgroundInsults();
+        }
+
+        function checkNewDay() {
+            const today = new Date().toLocaleDateString();
+            if (db.lastActiveDate !== today) {
+                db.subjects.forEach(s => s.daily = 0);
+                db.lastActiveDate = today;
+                db.streak++;
+                save();
+            }
+        }
+
+        function renderSubjects() {
+            const grid = document.getElementById('subject-grid');
+            grid.innerHTML = '';
+            db.subjects.forEach(s => {
+                grid.innerHTML += `
+                    <div class="bg-zinc-950 border border-zinc-900 p-4 rounded-2xl flex justify-between items-center hover:border-zinc-700 transition-colors">
+                        <div>
+                            <h4 class="text-sm font-bold text-zinc-200">${s.name}</h4>
+                            <div class="flex gap-3 mt-1">
+                                <span class="text-[9px] text-zinc-500 font-bold">TODAY: <span class="text-zinc-300">${(s.daily/3600).toFixed(1)}h</span></span>
+                                <span class="text-[9px] text-zinc-500 font-bold">TOTAL: <span class="text-zinc-300">${(s.life/3600).toFixed(1)}h</span></span>
+                            </div>
+                        </div>
+                        <button onclick="startFocus(${s.id})" class="p-3 bg-zinc-900 rounded-xl border border-zinc-800 text-toxic hover:bg-toxic hover:text-black transition-all">
+                            <i data-lucide="play" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+            });
+            lucide.createIcons();
+        }
+
+        // --- FOCUS ENGINE ---
+        function startFocus(id) {
+            activeId = id;
+            sessionSec = 0;
+            const sub = db.subjects.find(s => s.id === id);
+            
+            // UI Transition
+            document.getElementById('focus-subject').innerText = sub.name;
+            document.getElementById('focus-overlay').style.display = 'flex';
+            
+            // Request Fullscreen
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            }
+
+            timerInt = setInterval(() => {
+                sessionSec++;
+                sub.daily++;
+                sub.life++;
+                document.getElementById('focus-timer').innerText = formatTime(sessionSec);
+                
+                if (sessionSec % 60 === 0) {
+                    save();
+                    if (sessionSec % 1800 === 0) showNotification("Toxic Coach", "৩০ মিনিট পড়লি মাত্র। অনেক বেশি মনে হচ্ছে?");
+                }
+                
+                if (sessionSec % 300 === 0) {
+                    document.getElementById('focus-insult').innerText = insults[Math.floor(Math.random() * insults.length)];
+                }
+            }, 1000);
+        }
+
+        function requestStop() {
+            if (sessionSec < 1800) {
+                document.getElementById('stop-modal').style.display = 'flex';
+            } else {
+                exitFocus();
+            }
+        }
+
+        function confirmStop() {
+            const reason = document.getElementById('stop-reason').value;
+            alert(reason === 'lazy' ? "তোর দ্বারা কিচ্ছু হবে না। যা ঘুমো।" : "তাড়াতাড়ি ফিরে আয় হারামি।");
+            document.getElementById('stop-modal').style.display = 'none';
+            exitFocus();
+        }
+
+        function closeStopModal() {
+            document.getElementById('stop-modal').style.display = 'none';
+        }
+
+        function exitFocus() {
+            clearInterval(timerInt);
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+            }
+            document.getElementById('focus-overlay').style.display = 'none';
+            activeId = null;
+            save();
+            renderSubjects();
+            updateDashboard();
+        }
+
+        // --- HELPERS ---
+        function formatTime(s) {
+            const h = Math.floor(s / 3600).toString().padStart(2, '0');
+            const m = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
+            const sec = (s % 60).toString().padStart(2, '0');
+            return `${h}:${m}:${sec}`;
+        }
+
+        function updateDashboard() {
+            const todayT = db.subjects.reduce((a, b) => a + b.daily, 0);
+            const lifeT = db.subjects.reduce((a, b) => a + b.life, 0);
+            
+            document.getElementById('today-hours').innerText = (todayT / 3600).toFixed(1) + 'h';
+            document.getElementById('life-hours').innerText = (lifeT / 3600).toFixed(1) + 'h';
+            document.getElementById('life-days').innerText = db.streak;
+            
+            if (chart) {
+                chart.data.datasets[0].data = db.subjects.map(s => (s.life/3600).toFixed(1));
+                chart.update();
+            }
+        }
+
+        function save() {
+            localStorage.setItem('toxic_pro_v4', JSON.stringify(db));
+        }
+
+        function resetData() {
+            if (confirm("তোর সব পরিশ্রম মুছে দিবি? লুজারদের মত আবার জিরো থেকে শুরু করবি?")) {
+                localStorage.removeItem('toxic_pro_v4');
+                location.reload();
+            }
+        }
+
+        function requestNotifications() {
+            Notification.requestPermission().then(p => {
+                if (p === 'granted') alert("হারামি, এখন নোটিফিকেশন দিয়ে তোকে জ্বালানো হবে!");
+            });
+        }
+
+        function showNotification(title, body) {
+            if (Notification.permission === 'granted') {
+                new Notification(title, { body, icon: 'https://cdn-icons-png.flaticon.com/512/167/167512.png' });
+            }
+        }
+
+        function startBackgroundInsults() {
+            setInterval(() => {
+                if (!activeId) {
+                    const msg = insults[Math.floor(Math.random() * insults.length)];
+                    document.getElementById('insult-text').innerText = msg;
+                    showNotification("Toxic Coach", msg);
+                }
+            }, 900000); // 15 Minutes
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('lifetimeChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: db.subjects.map(s => s.name.split(' ')[0]),
+                    datasets: [{
+                        label: 'Lifetime Hours',
+                        data: db.subjects.map(s => (s.life/3600).toFixed(1)),
+                        borderColor: '#00ff66',
+                        backgroundColor: 'rgba(0, 255, 102, 0.05)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#00ff66',
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#444', font: { size: 8 } } },
+                        y: { grid: { color: '#111' }, ticks: { color: '#444', font: { size: 8 } } }
+                    }
+                }
+            });
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
