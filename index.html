@@ -2,406 +2,347 @@
 <html lang="bn">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Toxic Study Coach Pro</title>
-    <!-- Tailwind & Chart.js -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    <title>Toxic Jailer Native</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Lucid Icons via CDN -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap');
-        
+        /* Using System-Native Font Stacks 
+           Bangla: Priority to Noto Sans Bengali (Android Default) and Kohinoor (iOS/High-end Android)
+           English: Priority to System UI (Roboto/Inter)
+        */
         :root {
-            --amoled: #000000;
-            --toxic: #00ff66;
-            --blood: #ff0033;
-            --zinc-950: #09090b;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Bengali", "Kohinoor Bangla", sans-serif;
         }
 
         body {
-            background-color: var(--amoled);
-            color: #ffffff;
-            font-family: 'Hind Siliguri', sans-serif;
-            touch-action: manipulation;
+            font-family: var(--font-stack);
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            overflow: hidden;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        /* Fullscreen Focus Mode Overlay */
-        #focus-overlay {
-            display: none;
+        /* Smoothing for Bangla glyphs */
+        p, h1, h2, h3, button {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        /* Permission Gatekeeper Screen */
+        #permission-gate {
             position: fixed;
             inset: 0;
-            background: var(--amoled);
-            z-index: 9999;
+            background: #000;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            padding: 40px 24px;
+        }
+
+        .permission-card {
+            background: #111113;
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid #1c1c1e;
+            transition: all 0.3s ease;
+        }
+
+        .permission-card.granted {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        #native-notif-ui {
+            position: fixed;
+            top: -200px;
+            left: 12px;
+            right: 12px;
+            background: rgba(28, 28, 30, 0.98);
+            backdrop-filter: blur(20px);
+            border-radius: 28px;
+            z-index: 11000;
+            padding: 20px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.7);
+            transition: transform 0.6s cubic-bezier(0.2, 1, 0.2, 1);
+        }
+
+        #native-notif-ui.active { transform: translateY(215px); }
+
+        .jail-ui {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 9000;
+            display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .toxic-glow {
-            box-shadow: 0 0 30px rgba(0, 255, 102, 0.15);
-            border: 1px solid rgba(0, 255, 102, 0.3);
+        .pulse-loader {
+            width: 12px;
+            height: 12px;
+            background: #3b82f6;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
         }
 
-        .blood-glow {
-            box-shadow: 0 0 30px rgba(255, 0, 51, 0.2);
-            border: 1px solid rgba(255, 0, 51, 0.4);
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(3); opacity: 0; }
         }
-
-        .btn-grad {
-            background: linear-gradient(135deg, #00ff66 0%, #009944 100%);
-            color: black;
-            font-weight: 800;
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: var(--amoled); }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-
-        .stat-card {
-            background: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
-            border: 1px solid #1a1a1a;
-        }
-
-        @keyframes pulse-red {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-        .pulse-danger { animation: pulse-red 2s infinite; }
-
-        canvas { filter: saturate(1.5) brightness(0.8); }
     </style>
 </head>
-<body class="p-4 safe-area-inset">
+<body>
 
-    <!-- Header Section -->
-    <header class="flex justify-between items-start mb-6 pt-2">
-        <div>
-            <h1 class="text-2xl font-black tracking-tighter text-zinc-100 uppercase">Toxic Coach <span class="text-[10px] bg-red-600 px-1 py-0.5 rounded ml-1">v4.0</span></h1>
-            <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest" id="date-display"></p>
-        </div>
-        <div class="flex gap-2">
-            <button onclick="requestNotifications()" class="p-2 bg-zinc-900 rounded-full border border-zinc-800">
-                <i data-lucide="bell" class="w-4 h-4 text-zinc-400"></i>
-            </button>
-            <button onclick="resetData()" class="p-2 bg-zinc-900 rounded-full border border-zinc-800">
-                <i data-lucide="refresh-ccw" class="w-4 h-4 text-zinc-400"></i>
-            </button>
-        </div>
-    </header>
-
-    <!-- Global Lifetime Stats -->
-    <section class="grid grid-cols-3 gap-2 mb-6">
-        <div class="stat-card p-3 rounded-xl text-center">
-            <p class="text-[8px] text-zinc-500 uppercase font-black">Lifetime</p>
-            <p id="life-hours" class="text-lg font-bold text-toxic">0.0h</p>
-        </div>
-        <div class="stat-card p-3 rounded-xl text-center">
-            <p class="text-[8px] text-zinc-500 uppercase font-black">Day Streak</p>
-            <p id="life-days" class="text-lg font-bold">1</p>
-        </div>
-        <div class="stat-card p-3 rounded-xl text-center">
-            <p class="text-[8px] text-zinc-500 uppercase font-black">Today</p>
-            <p id="today-hours" class="text-lg font-bold">0.0h</p>
-        </div>
-    </section>
-
-    <!-- Toxic Motivation Box -->
-    <div class="bg-red-950/20 border border-red-900/30 p-4 rounded-2xl mb-8 relative overflow-hidden">
-        <div class="absolute -right-2 -bottom-2 opacity-10">
-            <i data-lucide="skull" class="w-16 h-16"></i>
-        </div>
-        <p id="insult-text" class="text-sm font-bold italic text-red-200 relative z-10 leading-relaxed">
-            "তোর পাশের বাসার আবির কিন্তু অলরেডি ২ চ্যাপ্টার শেষ করছে। তুই কি এখনো এইখানে স্ক্রল করতেছিস?"
-        </p>
-    </div>
-
-    <!-- Subject Management -->
-    <section class="mb-10">
-        <h2 class="text-xs font-black text-zinc-600 uppercase mb-4 tracking-widest flex items-center gap-2">
-            <i data-lucide="layers" class="w-3 h-3"></i> Subject Matrix
-        </h2>
-        <div id="subject-grid" class="space-y-3">
-            <!-- Dynamic Injection -->
-        </div>
-    </section>
-
-    <!-- Charts / Analytics -->
-    <section class="mb-24">
-        <h2 class="text-xs font-black text-zinc-600 uppercase mb-4 tracking-widest">Growth Analytics</h2>
-        <div class="bg-zinc-950 p-4 rounded-2xl border border-zinc-900">
-            <div class="h-64">
-                <canvas id="lifetimeChart"></canvas>
+    <!-- 1. SYSTEM PERMISSION GATE -->
+    <div id="permission-gate">
+        <header class="mb-10">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-2xl">🛡️</div>
+                <h1 class="text-2xl font-black uppercase tracking-tighter">System Setup</h1>
             </div>
-        </div>
-    </section>
+            <p class="text-zinc-500 text-sm leading-relaxed">Toxic Jailer requires deep system access to lock your phone and prevent wastage.</p>
+        </header>
 
-    <!-- Focus Mode Overlay -->
-    <div id="focus-overlay">
-        <div class="text-center px-6">
-            <p id="focus-subject" class="text-zinc-500 uppercase tracking-[0.5em] text-[10px] mb-2">Physics 1st Paper</p>
-            <h2 id="focus-timer" class="text-7xl font-mono font-black mb-8 text-white tracking-tighter">00:00:00</h2>
-            
-            <div class="p-6 rounded-3xl bg-zinc-900/50 border border-zinc-800 mb-12 toxic-glow">
-                <p id="focus-insult" class="text-toxic text-sm font-bold italic">"নড়াচড়া করবি না। চোখ বইয়ের দিকে রাখ হারামি!"</p>
-            </div>
-
-            <button onclick="requestStop()" class="group flex flex-col items-center gap-3">
-                <div class="w-16 h-16 rounded-full border-2 border-red-600 flex items-center justify-center group-active:scale-90 transition-transform">
-                    <i data-lucide="x" class="text-red-600 w-8 h-8"></i>
+        <div class="flex-1">
+            <div id="card-notif" class="permission-card">
+                <div>
+                    <h3 class="font-bold text-white">System Notifications</h3>
+                    <p class="text-[10px] text-zinc-500">To send alerts when you waste time</p>
                 </div>
-                <span class="text-[10px] font-black text-red-600 uppercase tracking-widest">Abandon Mission</span>
-            </button>
+                <button onclick="reqNotif()" id="btn-notif" class="bg-blue-600 px-4 py-2 rounded-xl text-[11px] font-black uppercase">Allow</button>
+            </div>
+
+            <div id="card-overlay" class="permission-card">
+                <div>
+                    <h3 class="font-bold text-white">Draw Over Apps</h3>
+                    <p class="text-[10px] text-zinc-500">Necessary to block TikTok/FB during study</p>
+                </div>
+                <button onclick="triggerHaptic(); alert('Find Toxic Jailer and enable Display Over Other Apps in settings.')" class="bg-zinc-800 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest">Enable</button>
+            </div>
+
+            <div id="card-battery" class="permission-card">
+                <div>
+                    <h3 class="font-bold text-white">Ignore Battery Saver</h3>
+                    <p class="text-[10px] text-zinc-500">Ensures the jailer doesn't sleep</p>
+                </div>
+                <button onclick="triggerHaptic(); alert('Set Battery Optimization to: Not Optimized')" class="bg-zinc-800 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest">Exempt</button>
+            </div>
+        </div>
+
+        <div class="mt-8 flex flex-col gap-4">
+            <div class="flex items-center justify-center gap-2 text-zinc-600 mb-2">
+                <div class="pulse-loader"></div>
+                <span class="text-[10px] font-bold uppercase tracking-widest">Checking Hardware...</span>
+            </div>
+            <button id="system-start-btn" onclick="initializeSystem()" class="w-full py-6 bg-white text-black rounded-[30px] font-black text-lg opacity-40 pointer-events-none transition-all">INITIALIZE JAILER</button>
         </div>
     </div>
 
-    <!-- Stop Confirmation Modal -->
-    <div id="stop-modal" class="modal">
-        <div class="bg-zinc-950 border border-zinc-800 p-8 rounded-[2rem] w-full max-w-sm text-center">
-            <i data-lucide="alert-triangle" class="w-12 h-12 text-red-600 mx-auto mb-4 pulse-danger"></i>
-            <h3 class="text-xl font-black mb-2 uppercase">মিশন ত্যাগ করবি?</h3>
-            <p class="text-zinc-500 text-xs mb-6">৩০ মিনিট পড়ার মুরোদ নাই তোর? কারণ সিলেক্ট কর:</p>
-            
-            <select id="stop-reason" class="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-sm mb-6 text-white appearance-none">
-                <option value="washroom">ওয়াশরুম (৫ মিনিট বিরতি)</option>
-                <option value="emergency">ইমার্জেন্সি (কোচ মাফ করবে না)</option>
-                <option value="lazy">আমি অলস, আমি ব্যর্থ</option>
-            </select>
-
-            <div class="space-y-3">
-                <button onclick="confirmStop()" class="w-full py-4 bg-red-600 text-white font-black rounded-xl uppercase text-xs">হ্যাঁ, আমি লুজার</button>
-                <button onclick="closeStopModal()" class="w-full py-4 bg-zinc-800 text-zinc-400 font-black rounded-xl uppercase text-xs">না, আমি পড়ব</button>
+    <!-- 2. NATIVE NOTIFICATION COMPONENT -->
+    <div id="native-notif-ui">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center text-2xl">🤡</div>
+            <div class="flex-1">
+                <p class="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Wastage Alert</p>
+                <p class="font-bold text-white text-sm" id="nt-title">সময় নষ্ট হচ্ছে!</p>
             </div>
         </div>
+        <p class="text-xs text-zinc-400 mt-3 mb-5 px-1" id="nt-body">তুই এখন ফালতু কাজ করছিস। এখনই পড়াশোনায় মন দে।</p>
+        <div class="flex gap-2">
+            <button onclick="dismissNotif()" class="flex-1 py-3 bg-zinc-900 rounded-xl text-[10px] font-black uppercase text-zinc-500">Dismiss</button>
+            <button onclick="dismissNotif(); enterJail();" class="flex-1 py-3 bg-blue-600 rounded-xl text-[10px] font-black uppercase">Lock Phone</button>
+        </div>
+    </div>
+
+    <!-- 3. MAIN UI -->
+    <div id="main-app" class="p-6 opacity-0 transition-opacity duration-1000 pointer-events-none">
+        <header class="flex justify-between items-center mt-6 mb-10">
+            <div>
+                <p id="system-clock" class="text-2xl font-black text-zinc-700">00:00</p>
+                <h1 class="text-3xl font-bold tracking-tighter">টক্সিক জেলার</h1>
+            </div>
+            <button onclick="toggleChart(true)" class="w-14 h-14 bg-zinc-900 rounded-full flex items-center justify-center">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+            </button>
+        </header>
+
+        <div class="grid grid-cols-2 gap-4 mb-8">
+            <div class="bg-zinc-950 border border-zinc-900 p-6 rounded-[32px]">
+                <p class="text-[10px] font-black text-zinc-600 uppercase mb-2">Life Points</p>
+                <p id="disp-study" class="text-2xl font-black text-blue-500">00:00:00</p>
+            </div>
+            <div class="bg-zinc-950 border border-zinc-900 p-6 rounded-[32px]">
+                <p class="text-[10px] font-black text-zinc-600 uppercase mb-2">Wasted</p>
+                <p id="disp-waste" class="text-2xl font-black text-red-600">00:00:00</p>
+            </div>
+        </div>
+
+        <button onclick="enterJail()" class="w-full py-12 bg-white text-black rounded-[40px] text-3xl font-black active:scale-95 transition-all">পড়তে বস হারামি!</button>
+        
+        <div class="flex gap-3 mt-4">
+            <button onclick="setMode('care')" id="m-care" class="flex-1 py-6 bg-zinc-900 rounded-3xl text-[10px] font-black uppercase">Care</button>
+            <button onclick="setMode('org')" id="m-org" class="flex-1 py-6 bg-zinc-900 rounded-3xl text-[10px] font-black uppercase">Org</button>
+            <button onclick="setMode('fun')" id="m-fun" class="flex-1 py-6 bg-zinc-900 rounded-3xl text-[10px] font-black uppercase">Fun</button>
+        </div>
+    </div>
+
+    <!-- 4. NATIVE JAIL OVERLAY -->
+    <div id="jail-screen" class="jail-ui">
+        <div id="jail-timer" class="text-[140px] font-black text-white leading-none">00:00</div>
+        <p class="text-blue-600 text-xs font-black uppercase tracking-[0.5em] mt-10">System is Locked</p>
+        <button onclick="exitJail()" class="absolute bottom-20 px-10 py-5 bg-zinc-950 border border-zinc-900 text-zinc-800 rounded-full font-black text-[10px] uppercase">EXIT JAIL (LOSER)</button>
     </div>
 
     <script>
-        // --- DATA ARCHITECTURE ---
-        const SUBJECT_KEYS = [
-            "Bangla 1st", "Bangla 2nd", "English 1st", "English 2nd", "ICT",
-            "Physics 1st", "Physics 2nd", "Chemistry 1st", "Chemistry 2nd",
-            "Math 1st", "Math 2nd", "Biology 1st", "Biology 2nd"
-        ];
+        const STORAGE_KEY = 'native_jailer_v16';
+        let wakeLock = null;
+        let lastNotifTime = 0;
 
-        let db = JSON.parse(localStorage.getItem('toxic_pro_v4')) || {
-            subjects: SUBJECT_KEYS.map((n, i) => ({ id: i, name: n, daily: 0, life: 0 })),
-            lastActiveDate: new Date().toLocaleDateString(),
-            streak: 1,
-            insultIndex: 0
+        let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+            setupComplete: false,
+            lifetime: 0, dailyStudy: 0, dailyWaste: 0,
+            lastDate: new Date().toLocaleDateString(),
+            mode: 'waste'
         };
 
-        let activeId = null;
-        let timerInt = null;
-        let sessionSec = 0;
-        let chart = null;
+        function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
-        const insults = [
-            "তোর পাশের বাসার আবির কিন্তু অলরেডি ২ চ্যাপ্টার শেষ করছে। তুই কি এখনো এইখানে স্ক্রল করতেছিস?",
-            "চান্স না পাইলে রিকশা কিনবি কেমনে? বাপের তো অনেক টাকা, তাই না?",
-            "বাপের টাকা ধ্বংস করার মেশিন তুই একটা। লজ্জা লাগে না?",
-            "রুটিন করিস প্রতিদিন, পড়িস না তো এক দিনও! আয়নায় মুখ দেখিস?",
-            "তোর দ্বারা রিকশা চালানোই সম্ভব। ওইটার লাইসেন্সটা করে রাখ বরং।",
-            "এখনো সময় আছে হারামি। পড়তে বোস নাইলে কপালে দুঃখ আছে।",
-            "মোবাইলটা বালিশের নিচে রেখে বইটা হাতে নে। তোর ভালোর জন্যই বলছি।"
-        ];
-
-        // --- CORE FUNCTIONS ---
-        function init() {
-            lucide.createIcons();
-            document.getElementById('date-display').innerText = new Date().toDateString();
-            checkNewDay();
-            renderSubjects();
-            updateDashboard();
-            initChart();
-            startBackgroundInsults();
+        async function reqNotif() {
+            const res = await Notification.requestPermission();
+            if (res === 'granted') {
+                document.getElementById('card-notif').classList.add('granted');
+                document.getElementById('btn-notif').innerText = 'Granted';
+                document.getElementById('btn-notif').disabled = true;
+                checkReady();
+            }
         }
 
-        function checkNewDay() {
-            const today = new Date().toLocaleDateString();
-            if (db.lastActiveDate !== today) {
-                db.subjects.forEach(s => s.daily = 0);
-                db.lastActiveDate = today;
-                db.streak++;
+        function checkReady() {
+            if (Notification.permission === 'granted') {
+                document.getElementById('system-start-btn').classList.remove('opacity-40', 'pointer-events-none');
+            }
+        }
+
+        function initializeSystem() {
+            state.setupComplete = true;
+            save();
+            document.getElementById('permission-gate').style.display = 'none';
+            document.getElementById('main-app').style.opacity = '1';
+            document.getElementById('main-app').style.pointerEvents = 'all';
+        }
+
+        function triggerHaptic(strong = false) {
+            if (navigator.vibrate) navigator.vibrate(strong ? [100, 50, 100] : [25]);
+        }
+
+        async function requestWakeLock() {
+            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+        }
+
+        function showSystemNotif() {
+            if (document.getElementById('jail-screen').style.display === 'flex') return;
+            const msgs = [
+                { t: "পড়তে বস হারামি!", b: "সময় নষ্ট করার ওস্তাদ তুই। ফোনের মায়া ছাড়।" },
+                { t: "কষ্ট হবে জানি...", b: "কিন্তু এখন না পড়লে সারাজীবন কান্দা লাগবে।" }
+            ];
+            const m = msgs[Math.floor(Math.random()*msgs.length)];
+            document.getElementById('nt-title').innerText = m.t;
+            document.getElementById('nt-body').innerText = m.b;
+            
+            triggerHaptic(true);
+            document.getElementById('native-notif-ui').classList.add('active');
+            setTimeout(dismissNotif, 8000);
+        }
+
+        function dismissNotif() { document.getElementById('native-notif-ui').classList.remove('active'); }
+
+        function enterJail() {
+            triggerHaptic(true);
+            requestWakeLock();
+            document.getElementById('jail-screen').style.display = 'flex';
+            document.getElementById('main-app').classList.add('hidden');
+            state.mode = 'study';
+            save();
+        }
+
+        function exitJail() {
+            if (confirm("তুই কি লড়াকু না কি লুজার? চলে যাবি?")) {
+                if (wakeLock) wakeLock.release();
+                document.getElementById('jail-screen').style.display = 'none';
+                document.getElementById('main-app').classList.remove('hidden');
+                state.mode = 'waste';
                 save();
             }
         }
 
-        function renderSubjects() {
-            const grid = document.getElementById('subject-grid');
-            grid.innerHTML = '';
-            db.subjects.forEach(s => {
-                grid.innerHTML += `
-                    <div class="bg-zinc-950 border border-zinc-900 p-4 rounded-2xl flex justify-between items-center hover:border-zinc-700 transition-colors">
-                        <div>
-                            <h4 class="text-sm font-bold text-zinc-200">${s.name}</h4>
-                            <div class="flex gap-3 mt-1">
-                                <span class="text-[9px] text-zinc-500 font-bold">TODAY: <span class="text-zinc-300">${(s.daily/3600).toFixed(1)}h</span></span>
-                                <span class="text-[9px] text-zinc-500 font-bold">TOTAL: <span class="text-zinc-300">${(s.life/3600).toFixed(1)}h</span></span>
-                            </div>
-                        </div>
-                        <button onclick="startFocus(${s.id})" class="p-3 bg-zinc-900 rounded-xl border border-zinc-800 text-toxic hover:bg-toxic hover:text-black transition-all">
-                            <i data-lucide="play" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                `;
+        function updateSystem() {
+            const now = new Date();
+            const h = now.getHours();
+            document.getElementById('system-clock').innerText = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+            const isSleep = (h >= 22 || h < 5);
+            const isStudying = (document.getElementById('jail-screen').style.display === 'flex' || state.mode === 'study');
+
+            if (isStudying) {
+                state.dailyStudy++;
+                state.lifetime++;
+            } else if (!isSleep) {
+                state.dailyWaste++;
+                if (Date.now() - lastNotifTime > 600000) {
+                    showSystemNotif();
+                    lastNotifTime = Date.now();
+                }
+            }
+            refreshUI();
+        }
+
+        function refreshUI() {
+            const f = (s) => {
+                const hrs = Math.floor(s/3600), m = Math.floor((s%3600)/60), sc = s%60;
+                return `${hrs.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sc.toString().padStart(2,'0')}`;
+            };
+            document.getElementById('disp-study').innerText = f(state.dailyStudy);
+            document.getElementById('disp-waste').innerText = f(state.dailyWaste);
+            if (document.getElementById('jail-screen').style.display === 'flex') {
+                const mins = Math.floor(state.dailyStudy / 60) % 60;
+                const secs = state.dailyStudy % 60;
+                document.getElementById('jail-timer').innerText = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+            }
+        }
+
+        function setMode(m) {
+            state.mode = m;
+            triggerHaptic();
+            ['care', 'org', 'fun'].forEach(id => {
+                const el = document.getElementById(`m-${id}`);
+                el.style.borderColor = (m === id) ? '#3b82f6' : 'transparent';
+                el.style.background = (m === id) ? '#111' : '#0a0a0c';
             });
-            lucide.createIcons();
-        }
-
-        // --- FOCUS ENGINE ---
-        function startFocus(id) {
-            activeId = id;
-            sessionSec = 0;
-            const sub = db.subjects.find(s => s.id === id);
-            
-            // UI Transition
-            document.getElementById('focus-subject').innerText = sub.name;
-            document.getElementById('focus-overlay').style.display = 'flex';
-            
-            // Request Fullscreen
-            if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(() => {});
-            }
-
-            timerInt = setInterval(() => {
-                sessionSec++;
-                sub.daily++;
-                sub.life++;
-                document.getElementById('focus-timer').innerText = formatTime(sessionSec);
-                
-                if (sessionSec % 60 === 0) {
-                    save();
-                    if (sessionSec % 1800 === 0) showNotification("Toxic Coach", "৩০ মিনিট পড়লি মাত্র। অনেক বেশি মনে হচ্ছে?");
-                }
-                
-                if (sessionSec % 300 === 0) {
-                    document.getElementById('focus-insult').innerText = insults[Math.floor(Math.random() * insults.length)];
-                }
-            }, 1000);
-        }
-
-        function requestStop() {
-            if (sessionSec < 1800) {
-                document.getElementById('stop-modal').style.display = 'flex';
-            } else {
-                exitFocus();
-            }
-        }
-
-        function confirmStop() {
-            const reason = document.getElementById('stop-reason').value;
-            alert(reason === 'lazy' ? "তোর দ্বারা কিচ্ছু হবে না। যা ঘুমো।" : "তাড়াতাড়ি ফিরে আয় হারামি।");
-            document.getElementById('stop-modal').style.display = 'none';
-            exitFocus();
-        }
-
-        function closeStopModal() {
-            document.getElementById('stop-modal').style.display = 'none';
-        }
-
-        function exitFocus() {
-            clearInterval(timerInt);
-            if (document.fullscreenElement) {
-                document.exitFullscreen().catch(() => {});
-            }
-            document.getElementById('focus-overlay').style.display = 'none';
-            activeId = null;
             save();
-            renderSubjects();
-            updateDashboard();
         }
 
-        // --- HELPERS ---
-        function formatTime(s) {
-            const h = Math.floor(s / 3600).toString().padStart(2, '0');
-            const m = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
-            const sec = (s % 60).toString().padStart(2, '0');
-            return `${h}:${m}:${sec}`;
-        }
-
-        function updateDashboard() {
-            const todayT = db.subjects.reduce((a, b) => a + b.daily, 0);
-            const lifeT = db.subjects.reduce((a, b) => a + b.life, 0);
-            
-            document.getElementById('today-hours').innerText = (todayT / 3600).toFixed(1) + 'h';
-            document.getElementById('life-hours').innerText = (lifeT / 3600).toFixed(1) + 'h';
-            document.getElementById('life-days').innerText = db.streak;
-            
-            if (chart) {
-                chart.data.datasets[0].data = db.subjects.map(s => (s.life/3600).toFixed(1));
-                chart.update();
+        window.onload = () => {
+            if (state.setupComplete) {
+                document.getElementById('permission-gate').style.display = 'none';
+                document.getElementById('main-app').style.opacity = '1';
+                document.getElementById('main-app').style.pointerEvents = 'all';
             }
-        }
-
-        function save() {
-            localStorage.setItem('toxic_pro_v4', JSON.stringify(db));
-        }
-
-        function resetData() {
-            if (confirm("তোর সব পরিশ্রম মুছে দিবি? লুজারদের মত আবার জিরো থেকে শুরু করবি?")) {
-                localStorage.removeItem('toxic_pro_v4');
-                location.reload();
-            }
-        }
-
-        function requestNotifications() {
-            Notification.requestPermission().then(p => {
-                if (p === 'granted') alert("হারামি, এখন নোটিফিকেশন দিয়ে তোকে জ্বালানো হবে!");
-            });
-        }
-
-        function showNotification(title, body) {
-            if (Notification.permission === 'granted') {
-                new Notification(title, { body, icon: 'https://cdn-icons-png.flaticon.com/512/167/167512.png' });
-            }
-        }
-
-        function startBackgroundInsults() {
-            setInterval(() => {
-                if (!activeId) {
-                    const msg = insults[Math.floor(Math.random() * insults.length)];
-                    document.getElementById('insult-text').innerText = msg;
-                    showNotification("Toxic Coach", msg);
-                }
-            }, 900000); // 15 Minutes
-        }
-
-        function initChart() {
-            const ctx = document.getElementById('lifetimeChart').getContext('2d');
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: db.subjects.map(s => s.name.split(' ')[0]),
-                    datasets: [{
-                        label: 'Lifetime Hours',
-                        data: db.subjects.map(s => (s.life/3600).toFixed(1)),
-                        borderColor: '#00ff66',
-                        backgroundColor: 'rgba(0, 255, 102, 0.05)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#00ff66',
-                        pointRadius: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { color: '#444', font: { size: 8 } } },
-                        y: { grid: { color: '#111' }, ticks: { color: '#444', font: { size: 8 } } }
-                    }
-                }
-            });
-        }
-
-        window.onload = init;
+            setInterval(updateSystem, 1000);
+            setMode(state.mode);
+        };
     </script>
 </body>
 </html>
+
